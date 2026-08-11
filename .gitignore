@@ -1,0 +1,24 @@
+# Build scripts — reproduce locally with the .py files if needed
+build_tuan_yao.py
+build_xiang.py
+clean_text.py
+gen_icons.py
+inject_data.py
+inject_xiang.py
+
+# Source data dumps (large, regeneratable)
+cuhk_raw.html
+profound_raw.html
+yijing_tuan_yao.json
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
