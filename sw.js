@@ -1,4 +1,4 @@
-const CACHE = 'dimai-dao-v1';
+const CACHE = 'dimai-dao-v2';
 const ASSETS = [
   './',
   'index.html',
@@ -24,14 +24,36 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
+  const req = e.request;
+  if (req.method !== 'GET') return;
+
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return; // let cross-origin go to network
+
+  // App shell (navigations / index.html): network-first so content updates
+  // reach users without a manual cache-name bump; fall back to cache when offline.
+  const isShell = req.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('index.html');
+  if (isShell) {
+    e.respondWith(
+      fetch(req)
+        .then(resp => {
+          const copy = resp.clone();
+          caches.open(CACHE).then(c => c.put(req, copy));
+          return resp;
+        })
+        .catch(() => caches.match(req).then(c => c || caches.match('index.html')))
+    );
+    return;
+  }
+
+  // Static assets: cache-first, refresh in background, never resolve to undefined.
   e.respondWith(
-    caches.match(e.request).then(cached =>
-      cached || fetch(e.request).then(resp => {
+    caches.match(req).then(cached =>
+      cached || fetch(req).then(resp => {
         const copy = resp.clone();
-        caches.open(CACHE).then(c => c.put(e.request, copy));
+        caches.open(CACHE).then(c => c.put(req, copy));
         return resp;
-      }).catch(() => cached)
+      }).catch(() => cached || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }))
     )
   );
 });
