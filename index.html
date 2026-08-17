@@ -89,6 +89,8 @@
   .daxiang p { font-size:13px; color:#F0E9DC; line-height:1.85; text-align:justify; text-justify:inter-ideograph; text-indent:2em; margin:0; }
   .foot { text-align:center; color:#7a6e5b; font-size:10px; padding:10px; line-height:1.6; }
   .empty { text-align:center; color:#7a6e5b; font-size:13px; padding:34px 10px; }
+  #update-bar { display:none; position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:999; cursor:pointer; user-select:none; background:#C9A24B; color:#1a140c; font-size:13px; font-weight:700; padding:10px 18px; border-radius:999px; box-shadow:0 6px 18px rgba(0,0,0,.45); max-width:92%; text-align:center; }
+  #update-bar:active { transform:translateX(-50%) scale(.97); }
 </style>
 </head>
 <body>
@@ -185,11 +187,44 @@ document.getElementById('search').addEventListener('input',function(e){ renderGr
 renderGrid('');
 </script>
 <script>
+  var updateAccepted = false;
+  var updateShown = false;
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function () {});
+      navigator.serviceWorker.register('sw.js').then(function (reg) {
+        if (reg.waiting) { showUpdate(reg.waiting); return; }
+        reg.addEventListener('updatefound', function () {
+          var installing = reg.installing;
+          if (!installing) return;
+          installing.addEventListener('statechange', function () {
+            if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+              showUpdate(installing);
+            }
+          });
+        });
+      }).catch(function () {});
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (updateAccepted) location.reload();
+      });
+    });
+  }
+  function showUpdate(worker) {
+    if (updateShown) return;
+    updateShown = true;
+    var bar = document.getElementById('update-bar');
+    if (!bar) return;
+    bar.style.display = 'flex';
+    function apply() {
+      updateAccepted = true;
+      bar.style.display = 'none';
+      worker.postMessage({ type: 'SKIP_WAITING' });
+    }
+    bar.addEventListener('click', apply);
+    bar.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); apply(); }
     });
   }
 </script>
+<div id="update-bar" role="button" tabindex="0" aria-label="發現新版本，點擊重新整理">發現新版本，點擊重新整理</div>
 </body>
 </html>
